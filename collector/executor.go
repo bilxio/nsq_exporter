@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -96,6 +97,7 @@ func (e *NsqExecutor) Collect(out chan<- prometheus.Metric) {
 
 	result := "success"
 	if err != nil {
+		log.Printf("ERROR: get stats: %v", err)
 		result = "error"
 	}
 
