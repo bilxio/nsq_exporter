@@ -5,17 +5,57 @@ import (
 	"net/http"
 )
 
-type statsResponse struct {
-	StatusCode int    `json:"status_code"`
-	StatusText string `json:"status_text"`
-	Data       stats  `json:"data"`
-}
+// NSQD has changed its interface, doesn't need a wrapper any more. More detail check these out:
+// - https://github.com/nsqio/nsq/blob/4138c4483071126f4251fc078277eb4b96f1dfcb/nsqd/http.go#L518
+// - https://github.com/nsqio/nsq/commit/8dff34dbbf5b76c9e9ac4fdd3829a409ef08f54d
+
+// type statsResponse struct {
+// 	StatusCode int    `json:"status_code"`
+// 	StatusText string `json:"status_text"`
+// 	Data       stats  `json:"data"`
+// }
 
 type stats struct {
 	Version   string   `json:"version"`
 	Health    string   `json:"health"`
 	StartTime int64    `json:"start_time"`
 	Topics    []*topic `json:"topics"`
+
+	// New since 2022-08-02
+	Producers []*producer `json:"producers"`
+	Memory    memory      `json:"memory"`
+}
+
+type producer struct {
+	ClientId      string      `json:"client_id"`
+	Hostname      string      `json:"hostname"`
+	Version       string      `json:"version"`
+	RemoteAddress string      `json:"remote_address"`
+	State         int         `json:"state"`
+	ReadyCount    int         `json:"ready_count"`
+	InFlightCount int         `json:"in_flight_count"`
+	MessageCount  int64       `json:"message_count"`
+	FinishCount   int64       `json:"finish_count"`
+	RequeueCount  int64       `json:"requeue_count"`
+	PubCounts     []*pubCount `json:"pub_counts"`
+	// does not care about the rest
+}
+
+type pubCount struct {
+	Topic string `json:"topic"`
+	Count int64  `json:"count"`
+}
+
+type memory struct {
+	HeapObjects       int64 `json:"heap_objects"`
+	HeapIdleBytes     int64 `json:"heap_idle_bytes"`
+	HeapInUseBytes    int64 `json:"heap_in_use_bytes"`
+	HeapReleasedBytes int64 `json:"heap_released_bytes"`
+	GcPauseUsec100    int64 `json:"gc_pause_usec_100"`
+	GcPauseUsec99     int64 `json:"gc_pause_usec_99"`
+	GcPauseUsec95     int64 `json:"gc_pause_usec_95"`
+	NextGcBytes       int64 `json:"next_gc_bytes"`
+	GcTotalRuns       int64 `json:"gc_total_runs"`
 }
 
 // see https://github.com/nsqio/nsq/blob/master/nsqd/stats.go
@@ -91,9 +131,9 @@ func getNsqdStats(client *http.Client, nsqdURL string) (*stats, error) {
 	}
 	defer resp.Body.Close()
 
-	var sr statsResponse
-	if err = json.NewDecoder(resp.Body).Decode(&sr); err != nil {
+	var st stats
+	if err = json.NewDecoder(resp.Body).Decode(&st); err != nil {
 		return nil, err
 	}
-	return &sr.Data, nil
+	return &st, nil
 }
